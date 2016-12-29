@@ -5,6 +5,10 @@
 module Elm.Marshall.App
     ( ElmApp
     , fromGlobal
+    , createEmbeddedMainApp
+    , createFullScreenMainApp
+    , assignPortListener
+    , sendSubscriptionObject
     ) where
 
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )
