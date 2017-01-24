@@ -12,7 +12,7 @@ mkDerivation {
   src = ./.;
   isLibrary = true;
   isExecutable = false;
-  executableHaskellDepends = [
+  libraryHaskellDepends = [
     base
     ghcjs-base
     ghcjs-dom

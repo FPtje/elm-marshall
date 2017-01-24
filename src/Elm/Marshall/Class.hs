@@ -1,8 +1,15 @@
 {-# LANGUAGE PackageImports #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DefaultSignatures    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Elm.Marshall.Class where
 
+import           "base" GHC.Generics
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )
 import           "ghcjs-base" GHCJS.Foreign ( toJSBool, fromJSBool, jsNull )
 import           "ghcjs-base" GHCJS.Marshal ( fromJSValUnchecked, toJSVal )
@@ -16,9 +23,30 @@ import qualified "ghcjs-base" JavaScript.Object as Obj
 import           "ghcjs-base" JavaScript.Object.Internal (Object(..))
 
 
+------------------------------------------------------------
+
+
 class ElmMarshall a where
   toElm   :: a -> IO JSVal
+
+  default toElm :: (Generic a, GenericElmMarshall (Rep a)) => a -> IO JSVal
+  toElm = genericToElm . from
+
   fromElm :: JSVal -> IO a
+  -- fromElm = genericFromElm >>= pure . to
+
+class GenericElmMarshall f where
+  genericToElm :: f a -> IO JSVal
+
+instance (Datatype d, GenericElmMarshall f) =>
+         GenericElmMarshall (D1 d f) where
+    genericToElm datatype = genericToElm $ unM1 datatype
+
+instance (Constructor c, GenericElmMarshall f) =>
+         GenericElmMarshall (C1 c f) where
+  genericToElm constructor = do
+    obj <- Obj.create
+    pure $ jsval obj
 
 
 instance ElmMarshall Bool where
@@ -66,6 +94,10 @@ instance ElmMarshall a => ElmMarshall (Maybe a) where
 instance ElmMarshall JSVal where
   toElm = pure
   fromElm = pure
+
+instance ElmMarshall () where
+  toElm () = toElm ([] :: [Int])
+  fromElm x = pure ()
 
 instance (ElmMarshall a, ElmMarshall b) => ElmMarshall (a, b) where
   toElm (a, b) = do
@@ -124,3 +156,5 @@ instance (ElmMarshall a, ElmMarshall b, ElmMarshall c, ElmMarshall d) => ElmMars
 
 
 --   fromElm m = _
+
+
