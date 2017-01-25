@@ -6,10 +6,12 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DataKinds            #-}
 
 module Elm.Marshall.Class where
 
 import           "base" GHC.Generics
+import           "base" Data.String ( fromString )
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )
 import           "ghcjs-base" GHCJS.Foreign ( toJSBool, fromJSBool, jsNull )
 import           "ghcjs-base" GHCJS.Marshal ( fromJSValUnchecked, toJSVal )
@@ -40,13 +42,39 @@ class GenericElmMarshall f where
 
 instance (Datatype d, GenericElmMarshall f) =>
          GenericElmMarshall (D1 d f) where
-    genericToElm datatype = genericToElm $ unM1 datatype
+  genericToElm datatype = genericToElm $ unM1 datatype
 
-instance (Constructor c, GenericElmMarshall f) =>
+instance (Constructor c, GenericElmMarshallSelector f) =>
          GenericElmMarshall (C1 c f) where
   genericToElm constructor = do
     obj <- Obj.create
+
+    fields <- genericToElmSelector $ unM1 constructor
+    mapM_ (\(name, val) -> Obj.setProp (fromString name) val obj) fields
+
     pure $ jsval obj
+
+class GenericElmMarshallSelector f where
+  genericToElmSelector :: f a -> IO [(String, JSVal)]
+
+instance (Selector ('MetaSel ('Just u) v w x), GenericElmMarshall a) =>
+         GenericElmMarshallSelector (S1 ('MetaSel ('Just u) v w x) a) where
+  genericToElmSelector selector =
+      case selName selector of
+        name -> do
+          val <- genericToElm $ unM1 selector
+          pure [(name, val)]
+
+
+instance (GenericElmMarshallSelector f, GenericElmMarshallSelector g) =>
+         GenericElmMarshallSelector (f :*: g) where
+  genericToElmSelector (l :*: r) = (++) <$> genericToElmSelector l <*> genericToElmSelector r
+
+
+instance ElmMarshall a => GenericElmMarshall (Rec0 a) where
+  genericToElm rec = toElm $ unK1 rec
+
+--------------
 
 
 instance ElmMarshall Bool where
