@@ -1,10 +1,12 @@
 {
 mkDerivation,
+stdenv,
+
 base,
+aeson,
 ghcjs-base,
 ghcjs-dom,
-ghcjs-ffiqq,
-stdenv
+ghcjs-ffiqq
 }:
 mkDerivation {
   pname = "elm-marshall";
@@ -14,6 +16,7 @@ mkDerivation {
   isExecutable = false;
   libraryHaskellDepends = [
     base
+    aeson
     ghcjs-base
     ghcjs-dom
     ghcjs-ffiqq

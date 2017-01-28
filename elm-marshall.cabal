@@ -16,11 +16,13 @@ library
   exposed-modules:
       Elm.Marshall.Class
     , Elm.Marshall.App
+    , Elm.Marshall.Aeson
 
   -- other-modules:
   -- other-extensions:
   build-depends:
       base >=4.8
+    , aeson
     , containers
     , ghcjs-base
     , ghcjs-dom

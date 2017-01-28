@@ -14,9 +14,10 @@ module Elm.Marshall.App
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )
 import           "ghcjs-ffiqq" GHCJS.Foreign.QQ
 import           "this" Elm.Marshall.Class
+import           "this" Elm.Marshall.Type
 import qualified "ghcjs-base" GHCJS.Foreign.Callback as F
 
-
+-- | Represents an Elm application.
 newtype ElmApp = ElmApp { unElmApp :: JSVal }
 
 -- | Get an Elm app reference from a global variable
@@ -52,14 +53,14 @@ assignPortListener app portName callback = do
     app1 = unElmApp app
 
     callback' :: JSVal -> IO ()
-    callback' jsv = fromElm jsv >>= callback
+    callback' jsv = fromElm (ElmValue jsv) >>= callback
 
 
 -- | Send data back to elm through a Sub(scription) port.
 -- See https://guide.elm-lang.org/interop/javascript.html#ports
 sendSubscriptionObject :: ElmMarshall a => ElmApp -> String -> a -> IO ()
 sendSubscriptionObject app subscriptionName value = do
-    value1 <- toElm value
+    value1 <- unElmValue <$> toElm value
     [js_| `app1.ports[ `subscriptionName ].send( `value1 ); |]
   where
     app1 :: JSVal
