@@ -35,27 +35,37 @@ class ElmMarshall a where
   toElm = genericToElm . from
 
   fromElm :: JSVal -> IO a
-  -- fromElm = genericFromElm >>= pure . to
+
+  default fromElm :: (Generic a, GenericElmMarshall (Rep a)) => JSVal -> IO a
+  fromElm v = genericFromElm (from (undefined :: a)) v >>= pure . to
 
 class GenericElmMarshall f where
   genericToElm :: f a -> IO JSVal
 
+  -- the f a here can be undefined
+  genericFromElm :: f a -> JSVal -> IO (f a)
+
 instance (Datatype d, GenericElmMarshall f) =>
          GenericElmMarshall (D1 d f) where
   genericToElm datatype = genericToElm $ unM1 datatype
+  genericFromElm datatype jsv = M1 <$> genericFromElm (unM1 datatype) jsv
 
 instance (Constructor c, GenericElmMarshallSelector f) =>
          GenericElmMarshall (C1 c f) where
   genericToElm constructor = do
-    obj <- Obj.create
+      obj <- Obj.create
 
-    fields <- genericToElmSelector $ unM1 constructor
-    mapM_ (\(name, val) -> Obj.setProp (fromString name) val obj) fields
+      fields <- genericToElmSelector $ unM1 constructor
+      mapM_ (\(name, val) -> Obj.setProp (fromString name) val obj) fields
 
-    pure $ jsval obj
+      pure $ jsval obj
+
+  genericFromElm constructor jsv =
+      M1 <$> genericFromElmSelector (unM1 constructor) (Object jsv)
 
 class GenericElmMarshallSelector f where
   genericToElmSelector :: f a -> IO [(String, JSVal)]
+  genericFromElmSelector :: f a -> Obj.Object -> IO (f a)
 
 instance (Selector ('MetaSel ('Just u) v w x), GenericElmMarshall a) =>
          GenericElmMarshallSelector (S1 ('MetaSel ('Just u) v w x) a) where
@@ -65,14 +75,27 @@ instance (Selector ('MetaSel ('Just u) v w x), GenericElmMarshall a) =>
           val <- genericToElm $ unM1 selector
           pure [(name, val)]
 
+  genericFromElmSelector selector obj =
+      case selName selector of
+        name -> do
+          prop <- Obj.getProp (fromString name) obj
+          val <- genericFromElm (unM1 selector) prop
+          pure $ M1 val
+
 
 instance (GenericElmMarshallSelector f, GenericElmMarshallSelector g) =>
          GenericElmMarshallSelector (f :*: g) where
-  genericToElmSelector (l :*: r) = (++) <$> genericToElmSelector l <*> genericToElmSelector r
+  genericToElmSelector (l :*: r) =
+      (++) <$> genericToElmSelector l <*> genericToElmSelector r
+
+  genericFromElmSelector (l :*: r) obj =
+      (:*:) <$> genericFromElmSelector l obj <*> genericFromElmSelector r obj
 
 
 instance ElmMarshall a => GenericElmMarshall (Rec0 a) where
   genericToElm rec = toElm $ unK1 rec
+
+  genericFromElm rec val = K1 <$> fromElm val
 
 --------------
 
@@ -114,10 +137,10 @@ instance ElmMarshall a => ElmMarshall (Maybe a) where
   toElm Nothing  = pure $ jsNull
 
   fromElm x =
-    if isNull x then
-      pure Nothing
-    else
-      fromElm x
+      if isNull x then
+        pure Nothing
+      else
+        fromElm x
 
 instance ElmMarshall JSVal where
   toElm = pure
@@ -142,7 +165,8 @@ instance (ElmMarshall a, ElmMarshall b) => ElmMarshall (a, b) where
       xArr :: JSArray
       xArr = SomeJSArray x
 
-instance (ElmMarshall a, ElmMarshall b, ElmMarshall c) => ElmMarshall (a, b, c) where
+instance (ElmMarshall a, ElmMarshall b, ElmMarshall c) =>
+         ElmMarshall (a, b, c) where
   toElm (a, b, c) = do
       a' <- toElm a
       b' <- toElm b
@@ -159,7 +183,8 @@ instance (ElmMarshall a, ElmMarshall b, ElmMarshall c) => ElmMarshall (a, b, c) 
       xArr :: JSArray
       xArr = SomeJSArray x
 
-instance (ElmMarshall a, ElmMarshall b, ElmMarshall c, ElmMarshall d) => ElmMarshall (a, b, c, d) where
+instance (ElmMarshall a, ElmMarshall b, ElmMarshall c, ElmMarshall d) =>
+         ElmMarshall (a, b, c, d) where
   toElm (a, b, c, d) = do
       a' <- toElm a
       b' <- toElm b
@@ -177,12 +202,5 @@ instance (ElmMarshall a, ElmMarshall b, ElmMarshall c, ElmMarshall d) => ElmMars
     where
       xArr :: JSArray
       xArr = SomeJSArray x
-
--- instance (ElmMarshall k, Ord k, ElmMarshall v) => ElmMarshall (Map k v) where
---   toElm m = do
---       obj <- Obj.create
-
-
---   fromElm m = _
 
 
