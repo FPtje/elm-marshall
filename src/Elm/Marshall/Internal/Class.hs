@@ -39,23 +39,11 @@ class ElmMarshall a where
   -- | Converts a Javascript value coming from Elm into a Haskell type.
   fromElm :: ElmValue a -> IO a
 
-  default toElm :: ElmMarshallInternal a => a -> IO (ElmValue a)
-  toElm x = ElmValue <$> toElm_ x
+  default toElm :: (Generic a, GenericElmMarshall (Rep a)) => a -> IO (ElmValue a)
+  toElm x = ElmValue <$> (genericToElm $ from x)
 
-  default fromElm :: ElmMarshallInternal a => ElmValue a -> IO a
-  fromElm x = fromElm_ $ unElmValue x
-
-
-class ElmMarshallInternal a where
-  toElm_   :: a -> IO JSVal
-
-  default toElm_ :: (Generic a, GenericElmMarshall (Rep a)) => a -> IO JSVal
-  toElm_ = genericToElm . from
-
-  fromElm_ :: JSVal -> IO a
-
-  default fromElm_ :: (Generic a, GenericElmMarshall (Rep a)) => JSVal -> IO a
-  fromElm_ v = genericFromElm (from (undefined :: a)) v >>= pure . to
+  default fromElm :: (Generic a, GenericElmMarshall (Rep a)) => ElmValue a -> IO a
+  fromElm x = genericFromElm (from (undefined :: a)) (unElmValue x) >>= pure . to
 
 
 class GenericElmMarshall f where
@@ -111,115 +99,116 @@ instance (GenericElmMarshallSelector f, GenericElmMarshallSelector g) =>
       (:*:) <$> genericFromElmSelector l obj <*> genericFromElmSelector r obj
 
 
-instance ElmMarshallInternal a => GenericElmMarshall (Rec0 a) where
-  genericToElm rec = toElm_ $ unK1 rec
+instance ElmMarshall a => GenericElmMarshall (Rec0 a) where
+  genericToElm rec = unElmValue <$> (toElm $ unK1 rec)
 
-  genericFromElm rec val = K1 <$> fromElm_ val
+  genericFromElm rec val = K1 <$> fromElm (ElmValue val)
 
 --------------
 
 
-instance ElmMarshallInternal Bool where
-  toElm_   = pure . toJSBool
-  fromElm_ = pure . fromJSBool
+instance ElmMarshall Bool where
+  toElm   = pure . ElmValue . toJSBool
+  fromElm = pure . fromJSBool . unElmValue
 
-instance ElmMarshallInternal Float where
-  toElm_   = toJSVal
-  fromElm_ = fromJSValUnchecked
+instance ElmMarshall Float where
+  toElm   = fmap ElmValue . toJSVal
+  fromElm = fromJSValUnchecked . unElmValue
 
-instance ElmMarshallInternal Double where
-  toElm_   = toJSVal
-  fromElm_ = fromJSValUnchecked
+instance ElmMarshall Double where
+  toElm   = fmap ElmValue . toJSVal
+  fromElm = fromJSValUnchecked . unElmValue
 
-instance ElmMarshallInternal Int where
-  toElm_   = toJSVal
-  fromElm_ = fromJSValUnchecked
+instance ElmMarshall Int where
+  toElm   = fmap ElmValue . toJSVal
+  fromElm = fromJSValUnchecked . unElmValue
 
-instance ElmMarshallInternal [Char] where
-  toElm_     = toJSVal . pack
-  fromElm_ x = fromJSValUnchecked x >>= fromJSValUnchecked
+instance {-# OVERLAPPING #-} ElmMarshall String where
+  toElm     = fmap ElmValue . toJSVal . pack
+  fromElm x = fromJSValUnchecked (unElmValue x) >>= fromJSValUnchecked
 
-instance ElmMarshallInternal T.Text where
-  toElm_   = toJSVal . textToJSString
-  fromElm_ = pure . textFromJSVal
+instance ElmMarshall T.Text where
+  toElm   = fmap ElmValue . toJSVal . textToJSString
+  fromElm = pure . textFromJSVal . unElmValue
 
-instance ElmMarshallInternal a => ElmMarshallInternal [a] where
-  toElm_ xs = do
-      xs' <- mapM toElm_ xs
-      pure $ jsval $ A.fromList xs'
+instance ElmMarshall a => ElmMarshall [a] where
+  toElm xs = do
+      xs' <- mapM (fmap unElmValue . toElm) xs
+      pure $ ElmValue $ jsval $ A.fromList xs'
 
-  fromElm_ xs =
-      mapM fromElm_ $ A.toList $ SomeJSArray xs
+  fromElm xs =
+      mapM (fromElm . ElmValue) $ A.toList $ SomeJSArray $ unElmValue xs
 
-instance ElmMarshallInternal a => ElmMarshallInternal (Maybe a) where
-  toElm_ (Just x) = toElm_ x
-  toElm_ Nothing  = pure $ jsNull
+instance ElmMarshall a => ElmMarshall (Maybe a) where
+  toElm (Just x) = fmap (ElmValue . unElmValue) $ toElm x
+  toElm Nothing  = pure $ ElmValue jsNull
 
-  fromElm_ x =
-      if isNull x then
+  fromElm x =
+      if isNull $ unElmValue x then
         pure Nothing
       else
-        fromElm_ x
+        fromElm x
 
-instance ElmMarshallInternal JSVal where
-  toElm_ = pure
-  fromElm_ = pure
+instance ElmMarshall JSVal where
+  toElm = pure . ElmValue
+  fromElm = pure . unElmValue
 
-instance ElmMarshallInternal () where
-  toElm_ () = toElm_ ([] :: [Int])
-  fromElm_ x = pure ()
+instance ElmMarshall () where
+  toElm () = fmap (ElmValue . unElmValue) $ toElm ([] :: [Int])
+  fromElm _ = pure ()
 
-instance (ElmMarshallInternal a, ElmMarshallInternal b) => ElmMarshallInternal (a, b) where
-  toElm_ (a, b) = do
-      a' <- toElm_ a
-      b' <- toElm_ b
-      toElm_ [a', b']
+instance (ElmMarshall a, ElmMarshall b) =>
+         ElmMarshall (a, b) where
+  toElm (a, b) = do
+      a' <- toElm a
+      b' <- toElm b
+      fmap (ElmValue . unElmValue) $ toElm [unElmValue a', unElmValue b']
 
-  fromElm_ x = do
-      a' <- fromElm_ $ xArr A.! 0
-      b' <- fromElm_ $ xArr A.! 1
+  fromElm x = do
+      a' <- fromElm $ ElmValue $ xArr A.! 0
+      b' <- fromElm $ ElmValue $ xArr A.! 1
 
       pure $ (a', b')
     where
       xArr :: JSArray
-      xArr = SomeJSArray x
+      xArr = SomeJSArray $ unElmValue x
 
-instance (ElmMarshallInternal a, ElmMarshallInternal b, ElmMarshallInternal c) =>
-         ElmMarshallInternal (a, b, c) where
-  toElm_ (a, b, c) = do
-      a' <- toElm_ a
-      b' <- toElm_ b
-      c' <- toElm_ c
-      toElm_ [a', b', c']
+instance (ElmMarshall a, ElmMarshall b, ElmMarshall c) =>
+         ElmMarshall (a, b, c) where
+  toElm (a, b, c) = do
+      a' <- toElm a
+      b' <- toElm b
+      c' <- toElm c
+      fmap (ElmValue . unElmValue) $ toElm [unElmValue a', unElmValue b', unElmValue c']
 
-  fromElm_ x = do
-      a' <- fromElm_ $ xArr A.! 0
-      b' <- fromElm_ $ xArr A.! 1
-      c' <- fromElm_ $ xArr A.! 2
+  fromElm x = do
+      a' <- fromElm $ ElmValue $ xArr A.! 0
+      b' <- fromElm $ ElmValue $ xArr A.! 1
+      c' <- fromElm $ ElmValue $ xArr A.! 2
 
       pure $ (a', b', c')
     where
       xArr :: JSArray
-      xArr = SomeJSArray x
+      xArr = SomeJSArray $ unElmValue x
 
-instance (ElmMarshallInternal a, ElmMarshallInternal b, ElmMarshallInternal c, ElmMarshallInternal d) =>
-         ElmMarshallInternal (a, b, c, d) where
-  toElm_ (a, b, c, d) = do
-      a' <- toElm_ a
-      b' <- toElm_ b
-      c' <- toElm_ c
-      d' <- toElm_ d
-      toElm_ [a', b', c', d']
+instance (ElmMarshall a, ElmMarshall b, ElmMarshall c, ElmMarshall d) =>
+         ElmMarshall (a, b, c, d) where
+  toElm (a, b, c, d) = do
+      a' <- toElm a
+      b' <- toElm b
+      c' <- toElm c
+      d' <- toElm d
+      fmap (ElmValue . unElmValue) $ toElm [unElmValue a', unElmValue b', unElmValue c', unElmValue d']
 
-  fromElm_ x = do
-      a' <- fromElm_ $ xArr A.! 0
-      b' <- fromElm_ $ xArr A.! 1
-      c' <- fromElm_ $ xArr A.! 2
-      d' <- fromElm_ $ xArr A.! 3
+  fromElm x = do
+      a' <- fromElm $ ElmValue $ xArr A.! 0
+      b' <- fromElm $ ElmValue $ xArr A.! 1
+      c' <- fromElm $ ElmValue $ xArr A.! 2
+      d' <- fromElm $ ElmValue $ xArr A.! 2
 
       pure $ (a', b', c', d')
     where
       xArr :: JSArray
-      xArr = SomeJSArray x
+      xArr = SomeJSArray $ unElmValue x
 
 
