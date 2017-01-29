@@ -2,9 +2,9 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Elm.Marshall.App
+module Elm.Marshall.Internal.App
     ( ElmApp
-    , fromGlobal
+    , fromGlobalApp
     , createEmbeddedMainApp
     , createFullScreenMainApp
     , assignPortListener
@@ -13,12 +13,13 @@ module Elm.Marshall.App
     , sendJSONSubscriptionObject
     ) where
 
+import           "this" Elm.Marshall.Internal.Class
+import           "this" Elm.Marshall.Internal.Type
+import           "this" Elm.Marshall.Internal.Aeson
+
 import qualified "aeson" Data.Aeson as AE
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )
 import           "ghcjs-ffiqq" GHCJS.Foreign.QQ
-import           "this" Elm.Marshall.Class
-import           "this" Elm.Marshall.Type
-import           "this" Elm.Marshall.Aeson
 import qualified "ghcjs-base" GHCJS.Foreign.Callback as F
 
 -- | Represents an Elm application.
@@ -28,8 +29,8 @@ newtype ElmApp = ElmApp { unElmApp :: JSVal }
 -- Use this if the elm app is defined elsewhere in the html file that also includes ghcjs.
 -- Make sure this function is run after the app is defined of course.
 -- See https://guide.elm-lang.org/interop/javascript.html#step-1-embed-in-html
-fromGlobal :: String -> IO ElmApp
-fromGlobal appName = [js| window[ `appName ] |] >>= pure . ElmApp
+fromGlobalApp :: String -> IO ElmApp
+fromGlobalApp appName = [js| window[ `appName ] |] >>= pure . ElmApp
 
 -- | Create an embedded Elm app.
 -- Requires the `id` of some `div` element.

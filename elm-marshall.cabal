@@ -14,9 +14,13 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-      Elm.Marshall.Class
-    , Elm.Marshall.App
-    , Elm.Marshall.Aeson
+      Elm.Marshall
+
+    -- You shouldn't need these. Please create an issue or a pull request if
+    -- you do.
+    , Elm.Marshall.Internal.Class
+    , Elm.Marshall.Internal.App
+    , Elm.Marshall.Internal.Aeson
 
   -- other-modules:
   -- other-extensions:

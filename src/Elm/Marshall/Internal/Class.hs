@@ -9,13 +9,13 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
-module Elm.Marshall.Class
+module Elm.Marshall.Internal.Class
   ( ElmMarshall
   , toElm
   , fromElm
   ) where
 
-import           "this" Elm.Marshall.Type
+import           "this" Elm.Marshall.Internal.Type
 import           "base" GHC.Generics
 import           "base" Data.String ( fromString )
 import           "ghcjs-base" GHCJS.Types ( JSVal, jsval, isNull )

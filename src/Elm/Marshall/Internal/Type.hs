@@ -1,6 +1,6 @@
 {-# LANGUAGE PackageImports       #-}
 
-module Elm.Marshall.Type where
+module Elm.Marshall.Internal.Type where
 
 import "ghcjs-base" GHCJS.Types ( JSVal, IsJSVal )
 

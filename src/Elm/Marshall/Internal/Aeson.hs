@@ -1,9 +1,10 @@
 {-# LANGUAGE PackageImports       #-}
 
-module Elm.Marshall.Aeson where
+module Elm.Marshall.Internal.Aeson where
 
-import           "this" Elm.Marshall.Class
-import           "this" Elm.Marshall.Type
+import           "this" Elm.Marshall.Internal.Class
+import           "this" Elm.Marshall.Internal.Type
+
 import qualified "aeson" Data.Aeson as AE
 import           "ghcjs-base" GHCJS.Types ( JSVal )
 import           "ghcjs-base" GHCJS.Marshal ( fromJSValUnchecked, toJSVal )
