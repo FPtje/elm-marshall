@@ -21,6 +21,7 @@ library
     , Elm.Marshall.Internal.Class
     , Elm.Marshall.Internal.App
     , Elm.Marshall.Internal.Aeson
+    , Elm.Marshall.Internal.Type
 
   -- other-modules:
   -- other-extensions:

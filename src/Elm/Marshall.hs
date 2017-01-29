@@ -13,9 +13,7 @@ module Elm.Marshall
   , sendSubscriptionObject
   , sendJSONSubscriptionObject
 
-  , ElmMarshall
-  , toElm
-  , fromElm
+  , ElmMarshall(..)
 
   , ElmValue
   ) where

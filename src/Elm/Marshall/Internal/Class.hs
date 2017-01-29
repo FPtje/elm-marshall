@@ -10,9 +10,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 
 module Elm.Marshall.Internal.Class
-  ( ElmMarshall
-  , toElm
-  , fromElm
+  ( ElmMarshall(..)
   ) where
 
 import           "this" Elm.Marshall.Internal.Type
