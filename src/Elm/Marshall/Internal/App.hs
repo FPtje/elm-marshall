@@ -70,7 +70,7 @@ assignPortListener' :: ElmApp -> String -> (JSVal -> IO ()) -> IO ()
 assignPortListener' app portName callback = do
     portCallback <- F.asyncCallback1 $ callback
     let jsvPortCallback = jsval portCallback
-    [jsi_| `app1.ports[ `portName ].subscribe( `jsvPortCallback ); |]
+    [jsu_| `app1.ports[ `portName ].subscribe( `jsvPortCallback ); |]
 
   where
     app1 :: JSVal
