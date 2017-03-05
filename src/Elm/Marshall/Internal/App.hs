@@ -9,6 +9,7 @@ module Elm.Marshall.Internal.App
     , createFullScreenMainApp
     , assignPortListener
     , assignJSONPortListener
+    , assignJSONStringPortListener
     , sendSubscriptionObject
     , sendJSONSubscriptionObject
     ) where
@@ -25,10 +26,10 @@ import qualified "ghcjs-base" GHCJS.Foreign.Callback as F
 -- | Represents an Elm application.
 newtype ElmApp = ElmApp { unElmApp :: JSVal }
 
--- | Get an Elm app reference from a global variable
--- Use this if the elm app is defined elsewhere in the html file that also includes ghcjs.
--- Make sure this function is run after the app is defined of course.
--- See https://guide.elm-lang.org/interop/javascript.html#step-1-embed-in-html
+-- | Get an Elm app reference from a global variable Use this if the elm app is
+-- defined elsewhere in the html file that also includes ghcjs. Make sure this
+-- function is run after the app is defined of course. See https://guide.elm-
+-- lang.org/interop/javascript.html#step-1-embed-in-html
 fromGlobalApp :: String -> IO ElmApp
 fromGlobalApp appName = [js| window[ `appName ] |] >>= pure . ElmApp
 
@@ -45,8 +46,8 @@ createFullScreenMainApp = [js| Elm.Main.fullscreen() |] >>= pure . ElmApp
 
 -- TODO: Non-Main Elm module support
 
--- | Listen to an Elm port (Cmd) for data. With this, elm can communicate to ghcjs
--- See https://guide.elm-lang.org/interop/javascript.html#ports
+-- | Listen to an Elm port (Cmd) for data. With this, elm can communicate to
+-- ghcjs See https://guide.elm-lang.org/interop/javascript.html#ports
 assignPortListener :: ElmMarshall a => ElmApp -> String -> (a -> IO ()) -> IO ()
 assignPortListener app portName callback =
     assignPortListener' app portName callback'
@@ -58,12 +59,34 @@ assignPortListener app portName callback =
 -- instead. At the Elm side, the port will be sending Json.Values. Use this
 -- for types that aren't allowed to go through ports directly (e.g. union
 -- types).
-assignJSONPortListener :: AE.FromJSON a => ElmApp -> String -> (a -> IO ()) -> IO ()
+assignJSONPortListener
+    :: AE.FromJSON a
+    => ElmApp
+    -> String
+    -> (a -> IO ())
+    -> IO ()
 assignJSONPortListener app portName callback =
     assignPortListener' app portName callback'
   where
     callback' :: JSVal -> IO ()
     callback' jsv = fromElm_json (ElmValue jsv) >>= callback
+
+
+-- | Same as 'assignJSONPortListener', but listens to JSON _strings_ from the
+-- port instead. At the Elm side, the port will be sending Strings. The reason
+-- for this is because json seems to be giving weird errors with JSVal
+-- objects. See https://github.com/ghcjs/ghcjs-base/issues/88
+assignJSONStringPortListener
+    :: AE.FromJSON a
+    => ElmApp
+    -> String
+    -> (a -> IO ())
+    -> IO ()
+assignJSONStringPortListener app portName callback =
+    assignPortListener' app portName callback'
+  where
+    callback' :: JSVal -> IO ()
+    callback' jsv = fromElm_jsonstr (ElmValue jsv) >>= callback
 
 
 assignPortListener' :: ElmApp -> String -> (JSVal -> IO ()) -> IO ()

@@ -4,6 +4,7 @@ stdenv,
 
 base,
 aeson,
+bytestring,
 ghcjs-base,
 ghcjs-dom,
 ghcjs-ffiqq
@@ -17,6 +18,7 @@ mkDerivation {
   libraryHaskellDepends = [
     base
     aeson
+    bytestring
     ghcjs-base
     ghcjs-dom
     ghcjs-ffiqq

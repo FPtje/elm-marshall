@@ -28,6 +28,7 @@ library
   build-depends:
       base >=4.8
     , aeson
+    , bytestring
     , containers
     , ghcjs-base
     , ghcjs-dom

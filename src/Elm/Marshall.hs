@@ -10,6 +10,7 @@ module Elm.Marshall
   , createFullScreenMainApp
   , assignPortListener
   , assignJSONPortListener
+  , assignJSONStringPortListener
   , sendSubscriptionObject
   , sendJSONSubscriptionObject
 
